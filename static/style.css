@@ -1,0 +1,31 @@
+* { box-sizing: border-box; }
+body { font-family: Tahoma, "Noto Sans Thai", "Leelawadee UI", Arial, sans-serif; margin: 0; padding: 20px; color: #17344b; }
+main { max-width: 900px; margin: auto; }
+h1 { font-size: 1.4rem; margin-bottom: 4px; }
+.muted { color: #546d83; font-size: 0.9rem; }
+form { margin-top: 16px; }
+fieldset { border: 1px solid #d3e0ec; border-radius: 9px; padding: 16px 20px; margin-bottom: 16px; }
+legend { font-weight: bold; color: #123e5c; padding: 0 8px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+label { font-size: 0.85rem; color: #546d83; }
+input[type="text"], select { padding: 6px 8px; font-size: 0.95rem; border: 1px solid #d3e0ec; border-radius: 5px; width: 150px; }
+button { margin-top: 8px; padding: 8px 16px; font-size: 1rem; background: #1d638b; color: white; border: none; border-radius: 5px; cursor: pointer; }
+button:hover { background: #154a68; }
+section { margin-top: 16px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+th, td { border: 1px solid #d3e0ec; padding: 8px 10px; text-align: left; }
+th { background: #e6f1fa; }
+.region { margin-top: 8px; font-weight: bold; padding: 6px 10px; border-radius: 5px; display: inline-block; }
+.badge-active { background: #e9f6f2; color: #0c6e67; border: 1px solid #178875; }
+.badge-cutoff { background: #f0f0f0; color: #666; border: 1px solid #ccc; }
+.badge-saturation { background: #fff4e9; color: #a44b22; border: 1px solid #b85c2c; }
+
+.result-wrap { display: flex; gap: 24px; align-items: flex-start; margin-top: 10px; flex-wrap: wrap; }
+.circuit { flex: 0 0 auto; border: 1px solid #d3e0ec; border-radius: 8px; padding: 10px; background: #f7faff; }
+.values { flex: 1 1 260px; min-width: 260px; }
+@media (max-width: 640px) {
+  .result-wrap { flex-direction: column; }
+  .row { flex-direction: column; }
+  input[type="text"], select { width: 100%; }
+}
