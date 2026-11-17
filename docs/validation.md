@@ -45,6 +45,9 @@ VCE = 9.74205 - 1.03660 = 8.70545 V
 หลักฐานภาพหน้าจอ (กรณี A1): [`docs/evidence-a1.png`](evidence-a1.png)  
 ข้อความผลที่คัดจากหน้าเว็บ A1: `IC 1.230 mA · VCE 8.052 V · ACTIVE · โหมด Voltage-Divider Bias`
 
+> ตรวจซ้ำหลังปรับเกณฑ์ Saturation เป็น `VCE ≤ 0.2 V` และเพิ่มการ reject `NaN`/`Inf`:  
+> A1–A5 ยังคง **PASS** และ unittest ผ่าน **28 tests**
+
 ## หมายเหตุเรื่องเครื่องมือตรวจ
 
 - **Playwright MCP: NOT RUN** — เครื่องนี้ไม่มี Node.js / npx (`node --version`, `npx --version` ไม่พบ)
