@@ -8,6 +8,9 @@ Flask web application ที่คำนวณ **DC Operating Point** ของ�
 
 เปิดผ่านเบราว์เซอร์ที่ `http://127.0.0.1:5000/`
 
+**GitHub repo:** <https://github.com/tongchaichutikran0610867038-oss/BJT-DC-Bias-Web-App>  
+**Commit SHA สำหรับส่งงาน:** ดูจาก GitHub หลัง push หรือรัน `git log -1 --format=%H`
+
 ## โครงสร้างไฟล์
 
 ```
