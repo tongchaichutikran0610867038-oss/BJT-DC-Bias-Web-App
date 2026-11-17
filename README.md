@@ -6,7 +6,9 @@ Flask web application ที่คำนวณ **DC Operating Point** ของ�
 - **Fixed Bias** (RB · RC)
 - **Emitter Bias แบบแหล่งจ่ายเดียว** (RB · RC · RE)
 
-เปิดผ่านเบราว์เซอร์ที่ `http://127.0.0.1:5000/`
+**ลิงก์ทดสอบในเครื่อง:** <http://127.0.0.1:5000/>  
+เปิดได้เฉพาะเครื่องนี้ขณะที่ Flask ยังรันอยู่ — ยังไม่มีลิงก์ออนไลน์เพราะโปรเจกต์นี้ยังไม่ได้ deploy
+(Flask ใช้งานบน GitHub Pages ไม่ได้)
 
 **GitHub repo:** <https://github.com/tongchaichutikran0610867038-oss/BJT-DC-Bias-Web-App>  
 **Commit SHA สำหรับส่งงาน:** ดูจาก GitHub หลัง push หรือรัน `git log -1 --format=%H`
