@@ -75,5 +75,7 @@ VCE = VC - VE
 
 Lab 04 ต่อยอดโดยไม่ลบทางเดิม: `app.py` แยก `action=analytical` กับ `action=spice`;
 `spice_engine.py` เรียก ngspice แล้ว `plots.py` วาด SVG จาก `run.raw` ที่ parse ได้
+UI ถูกรวมเป็น **ฟอร์มเดียว dropdown 6 ตัวเลือก** (`divider/fixed/emitter/spice_dc/spice_ac/spice_tran`)
+ตามที่เจ้าของ repo อนุมัติ — server เลือก solver/engine จากค่า `mode` ที่ส่งมา ไม่ได้แยกสองฟอร์ม
 ดูรายละเอียดการออกแบบ/หลักฐานเพิ่มเติมใน [`README.md`](../README.md) และ
 [`validation.md`](validation.md)

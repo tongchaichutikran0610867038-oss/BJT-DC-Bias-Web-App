@@ -91,8 +91,7 @@ class TestWebErrorPath(unittest.TestCase):
 
     def test_invalid_spice_input_does_not_show_success_or_plot(self):
         payload = {
-            "action": "spice",
-            "sp_analysis": "dc",
+            "mode": "spice_dc",
             "sp_vcc": "12",
             "sp_r1": "100",
             "sp_r2": "22",
@@ -105,6 +104,8 @@ class TestWebErrorPath(unittest.TestCase):
             "sp_freq": "1000",
         }
         html = self.client.post("/", data=payload).get_data(as_text=True)
+        for option in ("divider", "fixed", "emitter", "spice_dc", "spice_ac", "spice_tran"):
+            self.assertIn(f'value="{option}"', html)
         self.assertIn("RE ต้องมากกว่าหรือเท่ากับ", html)
         self.assertNotIn("STATUS: SUCCESS", html)
         self.assertNotIn('<svg class="plot"', html)

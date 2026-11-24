@@ -8,6 +8,7 @@ Flask web app เดิมจาก Lab 03 ยังใช้ได้ทุก�
 - **Lab 04 · SPICE**: `.op` (DC), `.ac` (Bode gain/phase), `.tran` (Vin/Vout ตามเวลา)
 - ผลทั้งหมดอ่านจาก `ngspice` ผ่าน `subprocess` → ไฟล์ `run.raw` → parser → SVG
 - มีป้ายแยก `ENGINE / MODEL / STATUS` และแยกผล **SPICE** กับ **Analytical reference** ให้ชัด
+- **ฟอร์มเดียว dropdown เดียว 6 ตัวเลือก** รวม LAB 03 (3 แบบ) + LAB 04 (3 analysis) — ปุ่มเดียวตามโหมด
 
 **ลิงก์ในเครื่อง:** <http://127.0.0.1:5000/>  
 **GitHub repo:** <https://github.com/tongchaichutikran0610867038-oss/BJT-DC-Bias-Web-App>  
@@ -22,7 +23,7 @@ Flask web app เดิมจาก Lab 03 ยังใช้ได้ทุก�
 ├── dc_bias.py            # สมการ Lab 03 สามฟังก์ชัน — ไม่ import Flask และไม่เปลี่ยนผลเดิม
 ├── spice_engine.py       #Lab04: สร้าง netlist, เรียก ngspice, parse ASCII .raw, error handling
 ├── plots.py              #Lab04: วาด Bode/waveform SVG จาก array ที่ parse ได้ (stdlib ล้วน)
-├── templates/index.html  # ฟอร์ม Lab 03 + form Analysis Mode/Source + ผล/status/หลักฐานรัน
+├── templates/index.html  # ฟอร์มเดียว 6 ตัวเลือก (Lab 03 ×3 + SPICE ×3) + ผล/status/หลักฐานรัน
 ├── static/style.css      # responsive layout, badge, plot container
 ├── tests/
 │   ├── test_dc_bias.py   # 28 เทสต์เดิมของ Lab 03
@@ -98,28 +99,28 @@ ngspice_con.exe -v
 
 ---
 
-## วิธีใช้หน้าเว็บ
+## วิธีใช้หน้าเว็บ — ฟอร์มเดียว 6 ตัวเลือก
 
-### Lab 03 (ทางเดิม ไม่เปลี่ยน)
+หน้าเว็บมี **ฟอร์มเดียว** และ dropdown **Analysis / Bias Mode** ที่มี 6 ตัวเลือก
+(ไม่ต้องสลับฟอร์ม Lab 03 / Lab 04):
 
-1. เลือกวงจรใน **วงจรที่เลือก** แล้วกด **Calculate DC Bias** เพื่อสลับช่อง
-2. กรอกเฉพาะช่องที่โผล่มา แล้วกดอีกครั้ง
+| # | ตัวเลือกใน dropdown | ทางเดิน | ปุ่ม |
+|---|---|---|---|
+| 1 | Voltage-Divider Bias (Lab 03) | `dc_bias.solve_voltage_divider` | Calculate DC Bias |
+| 2 | Fixed Bias (Lab 03) | `dc_bias.solve_fixed_bias` | Calculate DC Bias |
+| 3 | Emitter Bias (Lab 03) | `dc_bias.solve_emitter_bias` | Calculate DC Bias |
+| 4 | CE SPICE · DC (.op) | `ngspice .op` | Run ngspice Simulation |
+| 5 | CE SPICE · AC (.ac) | `ngspice .ac` | Run ngspice Simulation |
+| 6 | CE SPICE · Transient (.tran) | `ngspice .tran` | Run ngspice Simulation |
 
-| โหมด | ช่องที่ใช้ |
-|---|---|
-| Voltage-Divider | VCC, R1, R2, RC, RE, β, VBE |
-| Fixed | VCC, RB, RC, β, VBE |
-| Emitter | VCC, RB, RC, RE, β, VBE |
+เลือกตัวเลือก → กรอกเฉพาะช่องที่โผล่มา → กดปุ่มเดียว ระบบจะสลับ
+hidden field `action=analytical|spice` ให้เอง (JS ทำเฉพาะ UI; server validate ใหม่ทุกครั้ง)
 
-หน่วย resistance เลือก Ω / kΩ / MΩ ได้ตามเดิม
+**Lab 03 (1–3):** ใช้ VCC, R1/R2/RC/RE หรือ RB, β, VBE; หน่วย resistance เลือก Ω / kΩ / MΩ ได้ตามเดิม
 
-### Lab 04 (CE Simulator — เลื่อนลงมาด้านล่าง)
-
-1. เลือก **Analysis Mode**: `DC (.op)` / `AC (.ac)` / `Transient (.tran)`
-2. แก้ค่าวงจร/แหล่งสัญญาณแล้วกด **Run ngspice Simulation**
-   - ระหว่างรันจะเห็น `STATUS: RUNNING` (UI-only JS; ผลจริงยัง render จาก Flask)
-   - เสร็จแล้วจะเห็น `STATUS: SUCCESS` หรือหน้า `ERROR` ที่ไม่มีกราฟเก่า
-3. ดู badge `ENGINE: ngspice 47`, `MODEL: QNPN`, netlist และ log ใน `<details>`
+**Lab 04 (4–6):** ใช้ช่อง CE โดยเฉพาะ; ระหว่างรันจะเห็น `STATUS: RUNNING` (UI-only JS),
+เสร็จแล้วเป็น `ENGINE: ngspice 47 · MODEL: QNPN · STATUS: SUCCESS` หรือหน้า ERROR
+ที่ไม่มีกราฟ/ตัวเลขเก่า
 
 | ช่อง | หน่วยที่แสดง | หมายเหตุ |
 |---|---|---|

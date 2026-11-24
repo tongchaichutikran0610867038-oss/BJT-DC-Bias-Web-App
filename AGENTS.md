@@ -15,6 +15,7 @@
 **Lab 04 (เพิ่มเฉพาะที่อนุมัติ)**
 
 5. วงจร CE Voltage-Divider อ้างอิง **หนึ่งวงจร** ผ่าน `spice_engine.py`
+5b. **ฟอร์มเดียว dropdown เดียว 6 ตัวเลือก** (1–3 Lab 03, 4–6 Lab 04) — ทางเดินเลือกตาม `mode` ใน POST; ห้ามแยกฟอร์มอีก
 6. SPICE ได้จริง 3 analysis: `.op`, `.ac`, `.tran` ด้วย `ngspice_con.exe`
 7. กราฟ Bode (gain dB + phase °) และ waveform (V vs time ms) ที่สร้างจาก `run.raw` ที่ parse ได้
 8. ฟอร์ม Amplitude/Frequency, status/provenance, หลักฐาน netlist/log และ error state

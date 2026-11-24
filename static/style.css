@@ -26,9 +26,12 @@ th { background: #e6f1fa; }
 .circuit { flex: 0 0 auto; border: 1px solid #d3e0ec; border-radius: 8px; padding: 10px; background: #f7faff; }
 .values { flex: 1 1 260px; min-width: 260px; }
 .section-divider { border: 0; border-top: 2px solid #b7d4c8; margin: 28px 0 10px; }
-.lab4 > h2 { color: #0e6f68; font-size: 1.25rem; }
-.spice-form fieldset { border-color: #9fc9bc; background: #fbfefd; }
-.spice-form .field input { width: 132px; }
+.unified-form fieldset { border-color: #9fc9bc; background: #fbfefd; }
+.unified-form .field input { width: 132px; }
+.field-group { margin-top: 14px; }
+.field-group.is-hidden { display: none; }
+.group-title { margin: 0 0 10px; font-size: 0.95rem; color: #0e6f68; }
+.mode-field select { min-width: 290px; }
 .badge-model { background: #fff4e9; color: #9a5228; border: 1px solid #d59a68; }
 .badge-running { background: #fff8dc; color: #7a5a11; border: 1px solid #d9bd63; margin-left: 10px; }
 .provenance { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
@@ -46,7 +49,8 @@ th { background: #e6f1fa; }
 @media (max-width: 640px) {
   .result-wrap { flex-direction: column; }
   .row { flex-direction: column; }
-  input[type="text"], select, .spice-form .field input { width: 100%; }
+  input[type="text"], select, .unified-form .field input { width: 100%; }
+  .mode-field select { min-width: 0; }
   .plot { min-width: 560px; }
   .provenance { flex-direction: column; align-items: flex-start; }
 }

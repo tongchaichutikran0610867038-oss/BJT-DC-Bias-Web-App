@@ -114,6 +114,11 @@ OpenCode (MCP Client) ──MCP──▶ Playwright MCP (MCP Server) ──▶ B
 Fixture ตามใบงาน: `VCC=12 V`, `R1=100 kΩ`, `R2=22 kΩ`, `RC=2.2 kΩ`, `RE=1 kΩ`, `RL=10 kΩ`, `Cin=Cout=10 µF`, source `10 mV peak / 1 kHz`
 (ไม่มี emitter bypass capacitor ตาม baseline)
 
+**UI รวมฟอร์ม (หลัง approve จากผู้ใช้):** dropdown `Analysis / Bias Mode` มี 6 ค่า
+`divider / fixed / emitter / spice_dc / spice_ac / spice_tran`; `app.py` แยกทางเดินด้วยค่า `mode`
+ที่ส่งจากฟอร์ม (hidden `action` ถูกตั้งตามโหมดโดย JS แต่ server เป็นคนตรวจ/คำนวณ) —
+ผล Lab 03 ทั้ง 3 แบบยังเท่าเดิมทุกตัวเลข และ B2–B7 ผ่านเหมือนตอนแยกฟอร์ม
+
 ## ตัวอย่าง netlist ที่ส่งจริง (Transient)
 
 ```spice
@@ -154,14 +159,27 @@ Total analysis time (seconds) = 0.0073324
 
 | Case | Method | Input | Expected/Reference | Observed | Evidence | Status |
 |---|---|---|---|---|---|---|
-| **B1 · Regression** | OpenCode Browser — Select/Submit ทุกโหมดหลังเพิ่ม Lab 04 | Divider `R1=100k,R2=22k,RE=1k`; Fixed `RB=1M`; Emitter `RB=1M,RE=1k→2k` | ค่า Lab 03 เดิม: Divider 1.230 mA / 8.052 V; Fixed 1.130 mA / 9.514 V; Emitter 1.026 mA / 8.705 V; A4 0.940 mA / 8.033 V; RB=0 ต้อง error | Divider **1.230 mA / 8.052 V / ACTIVE**; Fixed **1.130 mA / 9.514 V / ACTIVE**; Emitter **1.026 mA / 8.705 V / ACTIVE**; เปลี่ยน RE=2k → **0.940 mA / 8.033 V**; RB=0 → `ค่า RB ต้องมากกว่า 0 Ω`, ไม่แสดงผลเก่า | ตาราง A1–A5 ข้างบน + snapshot หลังกด **Calculate DC Bias** จริง | **PASS** |
-| **B2 · DC SPICE** | OpenCode Browser — Analysis Mode `dc`, กด **Run ngspice Simulation** | Fixture ด้านบน, RE=1 kΩ | VB/VE/VC/VCE/IC จาก `ngspice .op` พร้อม Model และ Run Status | `VB 1.949 V · VE 1.289 V · VC 9.190 V · VCE 7.900 V · IC 1.277 mA`; badge `ENGINE: ngspice 47` `MODEL: QNPN` `STATUS: SUCCESS`; Analytical แยกต่างหาก `IC 1.230 mA · VCE 8.052 V · active` | [`b2_dc_desktop.png`](captures/b2_dc_desktop.png) + log ตัวอย่างด้านบน + `<details>` netlist/log ในหน้าเว็บ | **PASS** |
+| **B1 · Regression** | OpenCode Browser — dropdown เดียว 6 ตัวเลือก: select/submit 1–3 (Lab 03) และ 4–6 (Lab 04) | Divider `R1=100k,R2=22k,RE=1k`; Fixed `RB=1M`; Emitter `RB=1M,RE=1k→2k` | ค่า Lab 03 เดิม: Divider 1.230 mA / 8.052 V; Fixed 1.130 mA / 9.514 V; Emitter 1.026 mA / 8.705 V; A4 0.940 mA / 8.033 V; RB=0 ต้อง error | Divider **1.230 mA / 8.052 V / ACTIVE**; Fixed **1.130 mA / 9.514 V / ACTIVE**; Emitter **1.026 mA / 8.705 V / ACTIVE**; เปลี่ยน RE=2k → **0.940 mA / 8.033 V**; RB=0 → `ค่า RB ต้องมากกว่า 0 Ω`, ไม่แสดงผลเก่า | ตาราง A1–A5 ข้างบน + snapshot หลังกด **Calculate DC Bias** จริง | **PASS** |
+| **B2 · DC SPICE** | OpenCode Browser — dropdown ตัวเลือก **4 · CE SPICE · DC (.op)**, กด **Run ngspice Simulation** | Fixture ด้านบน, RE=1 kΩ | VB/VE/VC/VCE/IC จาก `ngspice .op` พร้อม Model และ Run Status | `VB 1.949 V · VE 1.289 V · VC 9.190 V · VCE 7.900 V · IC 1.277 mA`; badge `ENGINE: ngspice 47` `MODEL: QNPN` `STATUS: SUCCESS`; Analytical แยกต่างหาก `IC 1.230 mA · VCE 8.052 V · active` | [`b2_dc_desktop.png`](captures/b2_dc_desktop.png) + log ตัวอย่างด้านบน + `<details>` netlist/log ในหน้าเว็บ | **PASS** |
 | **B3 · Change RE** | OpenCode Browser — แก้เฉพาะ `RE (kΩ)` 1 → 2 แล้ว Run DC ซ้ำ | เหมือน B2 แต่ `RE=2` | Operating Point ต้องเปลี่ยน ไม่ใช่ค่าค้าง | `VB 2.048 V · VE 1.404 V · VC 10.469 V · VCE 9.065 V · IC 0.696 mA` (จาก 1.277 mA); ทิศทางสอดคล้อง RE เพิ่ม → IC ลด | snapshot ก่อน/หลังใน session เดียวกัน; ค่าใหม่ตรงกับ `run_raw` รอบใหม่ | **PASS** |
-| **B4 · AC** | OpenCode Browser — Analysis Mode `ac`, กด Run | Fixture, source amplitude 10 mV peak | Frequency axis, Gain magnitude (dB), Phase (degree) พร้อมหน่วย และข้อมูลจาก run จริง | `141 จุดความถี่จาก .ac DEC 20 1 10MEG`; SVG มีแกน `Frequency (Hz, log scale)`, `Gain |Vout/Vin| (dB)`, `Phase (degree)`; ที่ ~1 kHz อ่านได้ gain **4.859 dB**, phase **-179.87°**; gain ตกถึง **-2.606 dB** ที่ 1 Hz | [`b4_ac_desktop.png`](captures/b4_ac_desktop.png); log `No. of Data Rows : 141`; คำนวณ gain จาก `v(out)/v(in)` ใน `spice_engine.frequency_response()` | **PASS** |
-| **B5 · Transient** | OpenCode Browser — Analysis Mode `tran`, 10 mV peak / 1 kHz | `VS IN 0 SIN(0 0.01 1000)`, 6 periods | เห็น Vin/Vout ตามเวลา มีป้าย Volt/ms และสัญญาณกลับเฟส | `Vin peak 10.00 mV`, `Vout peak 17.50 mV`, `Phase direction กลับเฟส (~180°)`, `Samples 1008`; SVG แกน `Voltage (V)` / `Time (ms)` และ legend Vin/Vout | [`b5_tran_desktop.png`](captures/b5_tran_desktop.png); log `No. of Data Rows : 1008` | **PASS** |
+| **B4 · AC** | OpenCode Browser — dropdown ตัวเลือก **5 · CE SPICE · AC (.ac)**, กด Run | Fixture, source amplitude 10 mV peak | Frequency axis, Gain magnitude (dB), Phase (degree) พร้อมหน่วย และข้อมูลจาก run จริง | `141 จุดความถี่จาก .ac DEC 20 1 10MEG`; SVG มีแกน `Frequency (Hz, log scale)`, `Gain |Vout/Vin| (dB)`, `Phase (degree)`; ที่ ~1 kHz อ่านได้ gain **4.859 dB**, phase **-179.87°**; gain ตกถึง **-2.606 dB** ที่ 1 Hz | [`b4_ac_desktop.png`](captures/b4_ac_desktop.png); log `No. of Data Rows : 141`; คำนวณ gain จาก `v(out)/v(in)` ใน `spice_engine.frequency_response()` | **PASS** |
+| **B5 · Transient** | OpenCode Browser — dropdown ตัวเลือก **6 · CE SPICE · Transient (.tran)**, 10 mV peak / 1 kHz | `VS IN 0 SIN(0 0.01 1000)`, 6 periods | เห็น Vin/Vout ตามเวลา มีป้าย Volt/ms และสัญญาณกลับเฟส | `Vin peak 10.00 mV`, `Vout peak 17.50 mV`, `Phase direction กลับเฟส (~180°)`, `Samples 1008`; SVG แกน `Voltage (V)` / `Time (ms)` และ legend Vin/Vout | [`b5_tran_desktop.png`](captures/b5_tran_desktop.png); log `No. of Data Rows : 1008` | **PASS** |
 | **B6 · Change Source** | OpenCode Browser — เปลี่ยน amplitude 10→20 mV และ frequency 1→2 kHz แล้ว Run ซ้ำ | `VS IN 0 SIN(0 0.02 2000)` | Waveform/ค่าต้องเปลี่ยนตาม input ไม่ใช่กราฟ hard-code | `Vin peak 20.00 mV`, `Vout peak 34.99 mV`, ยังกลับเฟส; แกนเวลาเปลี่ยนจาก `0–6 ms` เป็น `0–3 ms` (6 periods ของ 2 kHz) | [`b6_tran_changed.png`](captures/b6_tran_changed.png) เทียบกับ B5; netlist ใน `<details>` แสดงบรรทัด `SIN(0 0.02 2000)` | **PASS** |
 | **B7 · Invalid / Fail** | OpenCode Browser — ใส่ `RE=0` แล้ว Run | `RE = 0 kΩ` | แจ้ง error, ไม่ค้าง, ไม่แสดง STATUS SUCCESS หรือกราฟเก่าปลอม | ข้อความจริง: `Simulation failed — engine status: ERROR` / `RE ต้องมากกว่าหรือเท่ากับ 1e-06` / `ไม่มีกราฟหรือตัวเลขจากรอบก่อนหน้าแสดงร่วมกับข้อความผิดพลาด`; ตรวจ DOM ไม่มี `.plot` และไม่มี `STATUS: SUCCESS` | [`b7_invalid.png`](captures/b7_invalid.png) + `tests/test_spice_engine.py` ตรวจ path เดียวกัน | **PASS** |
-| **B8 · UI** | OpenCode Browser — desktop viewport ~1296 px และ iframe 390 px (จำลอง phone viewport เพราะ browser tool ไม่มี viewport-resize API) + เปลี่ยนโหมด | Desktop: เปิด DC/AC/Tran; Phone: เปิด AC แล้วสลับ Fixed→Emitter | ปุ่ม/หน่วย/กราฟอ่านง่าย ไม่ตัดเนื้อหาสำคัญ | Desktop: buttons visible, `console error = 0`, document/CSS 200–304. Phone: `innerWidth=390`, `document.scrollWidth=390` (**ไม่มี horizontal overflow**), ปุ่มทั้งสองอยู่ในจอ; `.plot-wrap` กว้าง 348 px และเลื่อนได้เพื่อเห็นกราฟ `min-width=560 px`; สลับ Fixed → RB โผล่/RE ซ่อน, Emitter → RB+RE โผล่ | [`b2_dc_desktop.png`](captures/b2_dc_desktop.png), [`b8_ac_mobile.png`](captures/b8_ac_mobile.png) (390×2572 px), browser evaluate audit | **PASS** (ด้วยข้อจำกัด iframe — ไม่ใช่อุปกรณ์จริง) |
+| **B8 · UI** | OpenCode Browser — desktop viewport ~1296 px และ iframe 390 px (จำลอง phone viewport เพราะ browser tool ไม่มี viewport-resize API) + เปลี่ยนโหมด | Desktop: เปิด DC/AC/Tran; Phone: เปิด AC แล้วสลับ Fixed→Emitter | ปุ่ม/หน่วย/กราฟอ่านง่าย ไม่ตัดเนื้อหาสำคัญ | Desktop: buttons visible, `console error = 0`, document/CSS 200–304. Phone: `innerWidth=390`, `document.scrollWidth=390` (**ไม่มี horizontal overflow**), ปุ่มเดียวของฟอร์มรวมอยู่ในจอ; dropdown แสดงครบ 6 ตัวเลือก; `.plot-wrap` กว้าง 348 px และเลื่อนได้เพื่อเห็นกราฟ `min-width=560 px`; สลับ Fixed → RB โผล่/RE ซ่อน, Emitter → RB+RE โผล่ | [`b2_dc_desktop.png`](captures/b2_dc_desktop.png), [`b8_ac_mobile.png`](captures/b8_ac_mobile.png) (390×2700 px), browser evaluate audit | **PASS** (ด้วยข้อจำกัด iframe — ไม่ใช่อุปกรณ์จริง) |
+
+### ผลตรวจซ้ำหลังรวมเป็นฟอร์มเดียว 6 ตัวเลือก (OpenCode Browser)
+
+| Dropdown | ผลที่เห็น | Status |
+|---|---|---|
+| 1 Divider | `IC 1.230 mA · VCE 8.052 V · ACTIVE` | PASS |
+| 2 Fixed | `IC 1.130 mA · VCE 9.514 V · ACTIVE` | PASS |
+| 3 Emitter | `IC 1.026 mA · VCE 8.705 V · ACTIVE` | PASS |
+| 4 CE SPICE DC | `VB 1.949 · VE 1.289 · VC 9.190 · IC 1.277 mA` + Analytical `1.230 mA` | PASS |
+| 5 CE SPICE AC | `141 จุดความถี่`, SVG แกน Gain/Phase, `STATUS: SUCCESS` | PASS |
+| 6 CE SPICE TRAN | `Vin 10.00 mV · Vout 17.50 mV · 1008 samples`; เปลี่ยนเป็น 20 mV/2 kHz → `34.99 mV`, แกน 0–3 ms | PASS |
+| RE=0 ในตัวเลือก 4 | `Simulation failed — engine status: ERROR`, ไม่มี `STATUS: SUCCESS` และไม่มี `<svg class="plot">` | PASS |
+| Mobile 390 px (iframe) | `innerWidth=390`, `scrollWidth=390`, `.plot-wrap` client 348/scroll 560, `console error = 0` | PASS |
 
 ## การพิสูจน์ว่ากราฟไม่ใช่ Mock Data
 

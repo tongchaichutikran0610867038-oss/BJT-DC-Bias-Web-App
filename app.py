@@ -1,8 +1,8 @@
-"""Flask application for the BJT DC Bias web app (Lab 03).
+"""Flask app for Lab 03 DC Bias + Lab 04 CE amplifier simulator.
 
-Handles HTTP GET/POST, parses the form, validates inputs, converts units,
-selects the bias circuit, and calls the matching dc_bias engine function.
-The engine module knows nothing about Flask.
+One form offers six modes: three analytical bias circuits (dc_bias.py) and
+three ngspice analyses (spice_engine.py). The engine modules know nothing
+about Flask; this module owns parsing, validation and unit conversion.
 """
 
 import math
@@ -23,6 +23,9 @@ MODE_LABELS = {
     MODE_DIVIDER: "Voltage-Divider Bias",
     MODE_FIXED: "Fixed Bias",
     MODE_EMITTER: "Emitter Bias (แหล่งจ่ายเดียว)",
+    "spice_dc": "CE SPICE · DC (.op)",
+    "spice_ac": "CE SPICE · AC (.ac)",
+    "spice_tran": "CE SPICE · Transient (.tran)",
 }
 
 SOLVERS = {
@@ -74,6 +77,12 @@ ANALYSIS_LABELS = {
     "dc": "DC · .op",
     "ac": "AC · .ac",
     "tran": "Transient · .tran",
+}
+# One select, six choices: three analytical bias modes + three SPICE analyses.
+SPICE_MODES = {
+    "spice_dc": "dc",
+    "spice_ac": "ac",
+    "spice_tran": "tran",
 }
 
 
@@ -203,13 +212,21 @@ def index():
     spice_plot = ""
     analytical_reference = None
 
-    if request.method == "POST":
-        action = request.form.get("action", "analytical")
+    action = "analytical"
+    is_spice = False
 
-        if action == "spice":
+    if request.method == "POST":
+        # One form / one select. The six values decide which path to use.
+        mode = request.form.get("mode") or MODE_DIVIDER
+        action = request.form.get("action", "analytical")
+        spice_mode = SPICE_MODES.get(mode)
+        is_spice = spice_mode is not None or action == "spice"
+
+        if is_spice:
             # Lab 04 path: one CE reference circuit, three real ngspice analyses.
             spice_values = spice_form_values(request.form)
-            analysis = spice_values["sp_analysis"]
+            analysis = spice_mode or spice_values["sp_analysis"]
+            spice_values["sp_analysis"] = analysis
             try:
                 params = spice_params(spice_values)
                 spice_result = run_analysis(params)
@@ -293,6 +310,7 @@ def index():
         spice_error=spice_error,
         spice_plot=spice_plot,
         analytical_reference=analytical_reference,
+        is_spice=is_spice,
         analysis_label=ANALYSIS_LABELS.get(
             spice_values["sp_analysis"], spice_values["sp_analysis"]
         ),
