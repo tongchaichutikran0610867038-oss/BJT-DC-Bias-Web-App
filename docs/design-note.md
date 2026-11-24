@@ -69,4 +69,11 @@ VCE = VC - VE
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-ผลปัจจุบัน: **28 tests ผ่านทั้งหมด** (สมการ 3 วงจร, region, validation, unit conversion, mode dispatch)
+ผลปัจจุบัน: **34 tests ผ่านทั้งหมด** (28 เทสต์ Lab 03 เดิม + 6 เทสต์ Lab 04: netlist/parser/error path/rอบ ngspice จริง)
+
+## หมายเหตุ Lab 04
+
+Lab 04 ต่อยอดโดยไม่ลบทางเดิม: `app.py` แยก `action=analytical` กับ `action=spice`;
+`spice_engine.py` เรียก ngspice แล้ว `plots.py` วาด SVG จาก `run.raw` ที่ parse ได้
+ดูรายละเอียดการออกแบบ/หลักฐานเพิ่มเติมใน [`README.md`](../README.md) และ
+[`validation.md`](validation.md)

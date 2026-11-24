@@ -10,6 +10,8 @@ import math
 from flask import Flask, render_template, request
 
 from dc_bias import solve_voltage_divider, solve_fixed_bias, solve_emitter_bias
+from plots import bode_svg, waveform_svg
+from spice_engine import SpiceEngineError, run_analysis
 
 app = Flask(__name__)
 
@@ -50,6 +52,28 @@ DEFAULTS = {
     "re_unit": "kohm",
     "beta": "100",
     "vbe": "0.70",
+}
+
+# Lab 04: one fixed CE voltage-divider reference fed to ngspice.
+# Form values are strings so the user's entries survive a validation error.
+SPICE_DEFAULTS = {
+    "sp_analysis": "dc",
+    "sp_vcc": "12",
+    "sp_r1": "100",      # kΩ
+    "sp_r2": "22",       # kΩ
+    "sp_rc": "2.2",      # kΩ
+    "sp_re": "1",        # kΩ
+    "sp_rl": "10",       # kΩ
+    "sp_cin": "10",      # µF
+    "sp_cout": "10",     # µF
+    "sp_amp": "10",      # mV peak
+    "sp_freq": "1000",   # Hz
+}
+SPICE_INPUT_NAMES = tuple(SPICE_DEFAULTS)
+ANALYSIS_LABELS = {
+    "dc": "DC · .op",
+    "ac": "AC · .ac",
+    "tran": "Transient · .tran",
 }
 
 
@@ -130,6 +154,42 @@ def format_results(results):
     }
 
 
+def spice_form_values(form):
+    """Keep every Lab 04 field as the user typed it, including on error."""
+    return {name: form.get(name, SPICE_DEFAULTS[name]) for name in SPICE_INPUT_NAMES}
+
+
+def _scaled(raw, factor):
+    value = to_float(raw)
+    return None if value is None else value * factor
+
+
+def spice_params(values):
+    """Convert displayed kΩ/µF/mV inputs into SI units for the engine."""
+    return {
+        "analysis": values["sp_analysis"],
+        "vcc": to_float(values["sp_vcc"]),
+        "r1": parse_resistance(values["sp_r1"], "kohm"),
+        "r2": parse_resistance(values["sp_r2"], "kohm"),
+        "rc": parse_resistance(values["sp_rc"], "kohm"),
+        "re": parse_resistance(values["sp_re"], "kohm"),
+        "rl": parse_resistance(values["sp_rl"], "kohm"),
+        "cin": _scaled(values["sp_cin"], 1e-6),
+        "cout": _scaled(values["sp_cout"], 1e-6),
+        "amp": _scaled(values["sp_amp"], 1e-3),
+        "freq": to_float(values["sp_freq"]),
+    }
+
+
+def plot_for(analysis, series):
+    """Build presentation SVG from parsed engine data only."""
+    if analysis == "ac":
+        return bode_svg(series)
+    if analysis == "tran":
+        return waveform_svg(series)
+    return ""
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     values = dict(DEFAULTS)
@@ -137,50 +197,89 @@ def index():
     results = None
     errors = []
 
+    spice_values = dict(SPICE_DEFAULTS)
+    spice_result = None
+    spice_error = None
+    spice_plot = ""
+    analytical_reference = None
+
     if request.method == "POST":
-        # Missing mode keeps the Lab 2 default; an explicit bad value is an error.
-        mode = request.form.get("mode") or MODE_DIVIDER
-        values["mode"] = mode
+        action = request.form.get("action", "analytical")
 
-        required = required_fields(mode)
-        for name in ALL_INPUTS:
-            fallback = "" if name in required else DEFAULTS[name]
-            values[name] = request.form.get(name, fallback)
+        if action == "spice":
+            # Lab 04 path: one CE reference circuit, three real ngspice analyses.
+            spice_values = spice_form_values(request.form)
+            analysis = spice_values["sp_analysis"]
+            try:
+                params = spice_params(spice_values)
+                spice_result = run_analysis(params)
+                spice_plot = plot_for(analysis, spice_result["series"])
 
-        if mode not in SOLVERS:
-            errors = [
-                f"โหมดวงจรไม่รู้จัก: {mode} "
-                "(เลือกได้เฉพาะ divider, fixed หรือ emitter)"
-            ]
+                if analysis == "dc" and not any(item is None for item in params.values()):
+                    try:
+                        reference = solve_voltage_divider(
+                            vcc=params["vcc"],
+                            r1=params["r1"],
+                            r2=params["r2"],
+                            rc=params["rc"],
+                            re=params["re"],
+                            beta=float(DEFAULTS["beta"]),
+                            vbe=float(DEFAULTS["vbe"]),
+                        )
+                        analytical_reference = format_results(reference)
+                    except (ValueError, ZeroDivisionError):
+                        analytical_reference = None
+            except SpiceEngineError as exc:
+                # Never keep a previous success plot when the current run failed.
+                spice_error = str(exc)
+                spice_result = None
+                spice_plot = ""
+                analytical_reference = None
         else:
-            vcc = to_float(values["vcc"])
-            beta = to_float(values["beta"])
-            vbe = to_float(values["vbe"])
-            rc = parse_resistance(values["rc"], values["rc_unit"])
+            # Lab 03 path is untouched: same form fields, same three solvers.
+            # Missing mode keeps the Lab 2 default; an explicit bad value is an error.
+            mode = request.form.get("mode") or MODE_DIVIDER
+            values["mode"] = mode
 
-            resistors = [("RC", rc)]
-            kwargs = {"vcc": vcc, "rc": rc, "beta": beta, "vbe": vbe}
+            required = required_fields(mode)
+            for name in ALL_INPUTS:
+                fallback = "" if name in required else DEFAULTS[name]
+                values[name] = request.form.get(name, fallback)
 
-            if mode == MODE_DIVIDER:
-                r1 = parse_resistance(values["r1"], values["r1_unit"])
-                r2 = parse_resistance(values["r2"], values["r2_unit"])
-                re_ = parse_resistance(values["re"], values["re_unit"])
-                resistors[1:1] = [("R1", r1), ("R2", r2), ("RE", re_)]
-                kwargs.update(r1=r1, r2=r2, re=re_)
-            elif mode == MODE_FIXED:
-                rb = parse_resistance(values["rb"], values["rb_unit"])
-                resistors.insert(0, ("RB", rb))
-                kwargs["rb"] = rb
-            elif mode == MODE_EMITTER:
-                rb = parse_resistance(values["rb"], values["rb_unit"])
-                re_ = parse_resistance(values["re"], values["re_unit"])
-                resistors[0:0] = [("RB", rb), ("RE", re_)]
-                kwargs.update(rb=rb, re=re_)
+            if mode not in SOLVERS:
+                errors = [
+                    f"โหมดวงจรไม่รู้จัก: {mode} "
+                    "(เลือกได้เฉพาะ divider, fixed หรือ emitter)"
+                ]
+            else:
+                vcc = to_float(values["vcc"])
+                beta = to_float(values["beta"])
+                vbe = to_float(values["vbe"])
+                rc = parse_resistance(values["rc"], values["rc_unit"])
 
-            errors = validate_inputs(vcc, beta, vbe, resistors)
+                resistors = [("RC", rc)]
+                kwargs = {"vcc": vcc, "rc": rc, "beta": beta, "vbe": vbe}
 
-            if not errors:
-                results = format_results(SOLVERS[mode](**kwargs))
+                if mode == MODE_DIVIDER:
+                    r1 = parse_resistance(values["r1"], values["r1_unit"])
+                    r2 = parse_resistance(values["r2"], values["r2_unit"])
+                    re_ = parse_resistance(values["re"], values["re_unit"])
+                    resistors[1:1] = [("R1", r1), ("R2", r2), ("RE", re_)]
+                    kwargs.update(r1=r1, r2=r2, re=re_)
+                elif mode == MODE_FIXED:
+                    rb = parse_resistance(values["rb"], values["rb_unit"])
+                    resistors.insert(0, ("RB", rb))
+                    kwargs["rb"] = rb
+                elif mode == MODE_EMITTER:
+                    rb = parse_resistance(values["rb"], values["rb_unit"])
+                    re_ = parse_resistance(values["re"], values["re_unit"])
+                    resistors[0:0] = [("RB", rb), ("RE", re_)]
+                    kwargs.update(rb=rb, re=re_)
+
+                errors = validate_inputs(vcc, beta, vbe, resistors)
+
+                if not errors:
+                    results = format_results(SOLVERS[mode](**kwargs))
 
     return render_template(
         "index.html",
@@ -189,4 +288,12 @@ def index():
         values=values,
         mode=mode,
         mode_label=MODE_LABELS.get(mode, mode),
+        spice_values=spice_values,
+        spice_result=spice_result,
+        spice_error=spice_error,
+        spice_plot=spice_plot,
+        analytical_reference=analytical_reference,
+        analysis_label=ANALYSIS_LABELS.get(
+            spice_values["sp_analysis"], spice_values["sp_analysis"]
+        ),
     )

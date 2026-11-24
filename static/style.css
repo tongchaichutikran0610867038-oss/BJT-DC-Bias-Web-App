@@ -25,8 +25,28 @@ th { background: #e6f1fa; }
 .result-wrap { display: flex; gap: 24px; align-items: flex-start; margin-top: 10px; flex-wrap: wrap; }
 .circuit { flex: 0 0 auto; border: 1px solid #d3e0ec; border-radius: 8px; padding: 10px; background: #f7faff; }
 .values { flex: 1 1 260px; min-width: 260px; }
+.section-divider { border: 0; border-top: 2px solid #b7d4c8; margin: 28px 0 10px; }
+.lab4 > h2 { color: #0e6f68; font-size: 1.25rem; }
+.spice-form fieldset { border-color: #9fc9bc; background: #fbfefd; }
+.spice-form .field input { width: 132px; }
+.badge-model { background: #fff4e9; color: #9a5228; border: 1px solid #d59a68; }
+.badge-running { background: #fff8dc; color: #7a5a11; border: 1px solid #d9bd63; margin-left: 10px; }
+.provenance { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.provenance .badge { padding: 5px 9px; border-radius: 5px; font-size: 0.8rem; font-weight: bold; }
+.plot-wrap { margin-top: 12px; overflow-x: auto; border: 1px solid #d3e0ec; border-radius: 8px; background: #f9fcfd; }
+.plot { display: block; width: 100%; min-width: 620px; height: auto; }
+.run-evidence, .model-note { margin-top: 14px; border: 1px solid #d3e0ec; border-radius: 8px; padding: 10px 14px; background: #fff; }
+.run-evidence summary, .model-note summary { cursor: pointer; font-weight: bold; color: #123e5c; }
+.run-evidence pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.8rem; max-height: 320px; overflow-y: auto; background: #f4f7fb; padding: 10px; border-radius: 5px; }
+.run-evidence h4 { margin: 12px 0 4px; font-size: 0.9rem; color: #546d83; }
+.reference { margin-top: 12px; }
+.reference th { background: #eaf6f2; }
+.sim-results > .muted { margin-top: 10px; }
+
 @media (max-width: 640px) {
   .result-wrap { flex-direction: column; }
   .row { flex-direction: column; }
-  input[type="text"], select { width: 100%; }
+  input[type="text"], select, .spice-form .field input { width: 100%; }
+  .plot { min-width: 560px; }
+  .provenance { flex-direction: column; align-items: flex-start; }
 }

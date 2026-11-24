@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BJT DC Bias Calculator — Lab 03</title>
+<title>BJT DC Bias + CE Amplifier Simulator — Lab 04</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <main>
-<h1>BJT DC Bias Calculator</h1>
-<p class="muted">วงจร {{ mode_label }} · แบบจำลอง Forward-Active · เลือกโหมดแล้วกด Calculate เพื่อสลับช่องที่ใช้</p>
+<h1>BJT DC Bias Calculator + CE Amplifier Simulator</h1>
+<p class="muted">Lab 03: วงจร {{ mode_label }} แบบจำลอง Forward-Active · Lab 04: วงจร CE Reference ด้านล่างรันจริงด้วย ngspice</p>
 
 <form method="post" action="/" class="form">
   <fieldset>
@@ -150,7 +150,126 @@
 </section>
 {% endif %}
 
-<footer class="muted">ENG29 2121 · Lab 03 · สามวงจรไบอัส · แบบจำลอง Forward-Active เท่านั้น · เฉพาะเครื่องพัฒนา</footer>
+<hr class="section-divider">
+
+<section class="lab4">
+  <h2>CE Amplifier Simulator — Lab 04</h2>
+  <p class="muted">วงจรอ้างอิง Voltage-Divider CE หนึ่งวงจร · ผลที่แสดงด้านล่างอ่านจาก ngspice ที่รันจริงผ่าน <code>subprocess</code> ไม่ใช่ค่าที่เขียนไว้ล่วงหน้า · แยกป้ายผล <strong>SPICE</strong> กับ <strong>Analytical</strong> ให้ชัด</p>
+
+  <form method="post" action="/" class="form spice-form">
+    <input type="hidden" name="action" value="spice">
+    <fieldset>
+      <legend>Analysis Mode · Circuit · Source</legend>
+      <div class="row">
+        <div class="field">
+          <label for="sp_analysis">Analysis Mode</label>
+          <select id="sp_analysis" name="sp_analysis">
+            <option value="dc" {{ 'selected' if spice_values.sp_analysis=='dc' else '' }}>DC operating point (.op)</option>
+            <option value="ac" {{ 'selected' if spice_values.sp_analysis=='ac' else '' }}>AC frequency response (.ac)</option>
+            <option value="tran" {{ 'selected' if spice_values.sp_analysis=='tran' else '' }}>Transient waveform (.tran)</option>
+          </select>
+        </div>
+        <div class="field"><label for="sp_vcc">VCC (V)</label><input id="sp_vcc" name="sp_vcc" type="text" value="{{ spice_values.sp_vcc }}"></div>
+        <div class="field"><label for="sp_r1">R1 (kΩ)</label><input id="sp_r1" name="sp_r1" type="text" value="{{ spice_values.sp_r1 }}"></div>
+        <div class="field"><label for="sp_r2">R2 (kΩ)</label><input id="sp_r2" name="sp_r2" type="text" value="{{ spice_values.sp_r2 }}"></div>
+        <div class="field"><label for="sp_rc">RC (kΩ)</label><input id="sp_rc" name="sp_rc" type="text" value="{{ spice_values.sp_rc }}"></div>
+        <div class="field"><label for="sp_re">RE (kΩ)</label><input id="sp_re" name="sp_re" type="text" value="{{ spice_values.sp_re }}"></div>
+        <div class="field"><label for="sp_rl">RL (kΩ)</label><input id="sp_rl" name="sp_rl" type="text" value="{{ spice_values.sp_rl }}"></div>
+        <div class="field"><label for="sp_cin">Cin (µF)</label><input id="sp_cin" name="sp_cin" type="text" value="{{ spice_values.sp_cin }}"></div>
+        <div class="field"><label for="sp_cout">Cout (µF)</label><input id="sp_cout" name="sp_cout" type="text" value="{{ spice_values.sp_cout }}"></div>
+        <div class="field"><label for="sp_amp">Source amplitude (mV peak)</label><input id="sp_amp" name="sp_amp" type="text" value="{{ spice_values.sp_amp }}"></div>
+        <div class="field"><label for="sp_freq">Source frequency (Hz)</label><input id="sp_freq" name="sp_freq" type="text" value="{{ spice_values.sp_freq }}"></div>
+      </div>
+      <details class="model-note">
+        <summary>Model และจุดวัด (กดเพื่อดู)</summary>
+        <p>Generic NPN: <code>.MODEL QNPN NPN(IS=1e-14 BF=100 VAF=100 RB=10)</code> — ไม่ได้อ้างว่าเป็น transistor รุ่นการค้าใดรุ่นหนึ่ง</p>
+        <p>DC: อ่าน VB / VE / VC จาก <code>.op</code และคำนวณ IC จาก <code>(VCC−VC)/RC</code> · AC: Gain = <code>|Vout/Vin|</code> โดย Vin คือ <code>V(IN)</code> ก่อน Cin, Vout คือ <code>V(OUT)</code> ที่ RL · Sweep 1 Hz–10 MHz · Transient: <code>SIN(0 amplitude frequency)</code> 6 รอบ</p>
+        <p class="muted">โมเดลนี้ไม่มี high-frequency pole → หากกราฟไม่ตัดที่ความถี่สูง ให้ระบุ “not determined in sweep range” แทนการสร้างค่า f<sub>H</sub> ขึ้นเอง</p>
+      </details>
+      <button type="submit">Run ngspice Simulation</button>
+      <span id="spice-running" class="badge badge-running" hidden>STATUS: RUNNING</span>
+    </fieldset>
+  </form>
+
+  {% if spice_error %}
+  <section class="errors">
+    <h3>Simulation failed — engine status: ERROR</h3>
+    <p>{{ spice_error }}</p>
+    <p class="muted">ไม่มีกราฟหรือตัวเลขจากรอบก่อนหน้าแสดงร่วมกับข้อความผิดพลาด</p>
+  </section>
+  {% endif %}
+
+  {% if spice_result %}
+  <section class="results sim-results">
+    <h3>ผลจำลอง {{ analysis_label }}</h3>
+    <p class="provenance">
+      <span class="badge badge-active">ENGINE: ngspice {{ spice_result.version }}</span>
+      <span class="badge badge-model">MODEL: QNPN</span>
+      <span class="badge badge-active">STATUS: {{ spice_result.status|upper }}</span>
+    </p>
+
+    {% if spice_result.analysis == 'dc' %}
+    <div class="result-wrap">
+      <table>
+        <tr><th>ปริมาณ</th><th>ค่าจาก ngspice</th><th>หน่วย</th></tr>
+        <tr><td>VB</td><td>{{ '%.3f'|format(spice_result.readings.vb) }}</td><td>V</td></tr>
+        <tr><td>VE</td><td>{{ '%.3f'|format(spice_result.readings.ve) }}</td><td>V</td></tr>
+        <tr><td>VC</td><td>{{ '%.3f'|format(spice_result.readings.vc) }}</td><td>V</td></tr>
+        <tr><td>VCE</td><td>{{ '%.3f'|format(spice_result.readings.vce) }}</td><td>V</td></tr>
+        <tr><td>IC (จาก RC drop)</td><td>{{ '%.3f'|format(spice_result.readings.ic * 1000) }}</td><td>mA</td></tr>
+      </table>
+      {% if analytical_reference %}
+      <table class="reference">
+        <tr><th>Analytical reference (β=100, VBE=0.70 V)</th><th>ค่า</th><th>หน่วย</th></tr>
+        <tr><td>IC</td><td>{{ analytical_reference.ic }}</td><td>mA</td></tr>
+        <tr><td>VCE</td><td>{{ analytical_reference.vce }}</td><td>V</td></tr>
+        <tr><td>Region</td><td>{{ analytical_reference.region }}</td><td>—</td></tr>
+      </table>
+      {% endif %}
+    </div>
+    <p class="muted">{{ spice_result.readings.source }} · ผล SPICE กับ Analytical ไม่จำเป็นต้องเท่ากันทุกหลัก เพราะโมเดลและสมมติฐานต่างกัน</p>
+    {% endif %}
+
+    {% if spice_result.analysis == 'ac' %}
+    <p class="muted">อ้างอิง: V(IN) ก่อน Cin · Vout ที่ RL · {{ spice_result.readings.points }} จุดความถี่จาก <code>.ac DEC 20 1 10MEG</code></p>
+    <div class="plot-wrap">{{ spice_plot|safe }}</div>
+    {% endif %}
+
+    {% if spice_result.analysis == 'tran' %}
+    <table>
+      <tr><th>ปริมาณ</th><th>ค่าจาก ngspice</th><th>หน่วย</th></tr>
+      <tr><td>Vin peak</td><td>{{ '%.2f'|format(spice_result.readings.vin_peak_v * 1000) }}</td><td>mV</td></tr>
+      <tr><td>Vout peak</td><td>{{ '%.2f'|format(spice_result.readings.vout_peak_v * 1000) }}</td><td>mV</td></tr>
+      <tr><td>Phase direction</td><td>{{ 'กลับเฟส (~180°)' if spice_result.readings.inverted else 'ไม่กลับเฟส' }}</td><td>—</td></tr>
+      <tr><td>Samples</td><td>{{ spice_result.readings.samples }}</td><td>points</td></tr>
+    </table>
+    <div class="plot-wrap">{{ spice_plot|safe }}</div>
+    {% endif %}
+
+    <details class="run-evidence">
+      <summary>หลักฐานรัน: netlist และ log (จากรอบนี้)</summary>
+      <h4>circuit.cir</h4>
+      <pre>{{ spice_result.netlist }}</pre>
+      <h4>run.log (excerpt)</h4>
+      <pre>{{ spice_result.log_excerpt }}</pre>
+    </details>
+  </section>
+  {% endif %}
+</section>
+
+<footer class="muted">ENG29 2121 · Lab 03 + Lab 04 · DC Bias สามวงจร · CE Amplifier จริงด้วย ngspice · เฉพาะเครื่องพัฒนา</footer>
 </main>
+<script>
+  // UI-only progressive enhancement: the server still renders SUCCESS/ERROR.
+  document.querySelector('.spice-form')?.addEventListener('submit', function () {
+    const running = document.getElementById('spice-running');
+    if (running) running.hidden = false;
+    const button = this.querySelector('button[type="submit"]');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Running ngspice…';
+    }
+  });
+</script>
 </body>
 </html>

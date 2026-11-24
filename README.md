@@ -1,110 +1,185 @@
-# BJT DC Bias Web App — Lab 03 (ENG29 2121)
+# BJT DC Bias + CE Amplifier Simulator — Lab 03 → Lab 04 (ENG29 2121)
 
-Flask web application ที่คำนวณ **DC Operating Point** ของวงจร BJT Common-Emitter ได้ 3 แบบเลือกได้จากหน้าเว็บ:
+Flask web app เดิมจาก Lab 03 ยังใช้ได้ทุกประการ (Voltage-Divider / Fixed / Emitter Bias)
+และต่อยอดเป็น **Common-Emitter Amplifier Simulator v1** ที่รันจริงด้วย **ngspice 47**
+สำหรับวงจร CE Voltage-Divider อ้างอิงหนึ่งวงจร:
 
-- **Voltage-Divider Bias** (ของเดิมจาก Lab 2 — ผลยังคงเดิมทุกประการ)
-- **Fixed Bias** (RB · RC)
-- **Emitter Bias แบบแหล่งจ่ายเดียว** (RB · RC · RE)
+- **Lab 03 · Analytical DC Bias**: `dc_bias.py` (ไม่แตะสมการเดิม) + 3 โหมด + validation เดิม
+- **Lab 04 · SPICE**: `.op` (DC), `.ac` (Bode gain/phase), `.tran` (Vin/Vout ตามเวลา)
+- ผลทั้งหมดอ่านจาก `ngspice` ผ่าน `subprocess` → ไฟล์ `run.raw` → parser → SVG
+- มีป้ายแยก `ENGINE / MODEL / STATUS` และแยกผล **SPICE** กับ **Analytical reference** ให้ชัด
 
-**ลิงก์ทดสอบในเครื่อง:** <http://127.0.0.1:5000/>  
-เปิดได้เฉพาะเครื่องนี้ขณะที่ Flask ยังรันอยู่ — ยังไม่มีลิงก์ออนไลน์เพราะโปรเจกต์นี้ยังไม่ได้ deploy
-(Flask ใช้งานบน GitHub Pages ไม่ได้)
-
+**ลิงก์ในเครื่อง:** <http://127.0.0.1:5000/>  
 **GitHub repo:** <https://github.com/tongchaichutikran0610867038-oss/BJT-DC-Bias-Web-App>  
 **Commit SHA สำหรับส่งงาน:** ดูจาก GitHub หลัง push หรือรัน `git log -1 --format=%H`
+
+---
 
 ## โครงสร้างไฟล์
 
 ```
-├── app.py                # Flask route, เลือกโหมดด้วย if/elif, แปลงหน่วย, validation
-├── dc_bias.py            # สมการวิศวกรรมล้วน 3 ฟังก์ชัน (ไม่รู้จัก Flask/HTML)
-│   ├── solve_voltage_divider(...)  # เดิมจาก Lab 2 (ไม่แก้)
-│   ├── solve_fixed_bias(...)
-│   └── solve_emitter_bias(...)
-├── templates/index.html  # ฟอร์มเลือกโหมด + ผล + วงจร SVG ตามโหมด (Jinja)
-├── static/style.css
+├── app.py                # Flask route: action=analytical (Lab 03) หรือ action=spice (Lab 04)
+├── dc_bias.py            # สมการ Lab 03 สามฟังก์ชัน — ไม่ import Flask และไม่เปลี่ยนผลเดิม
+├── spice_engine.py       #Lab04: สร้าง netlist, เรียก ngspice, parse ASCII .raw, error handling
+├── plots.py              #Lab04: วาด Bode/waveform SVG จาก array ที่ parse ได้ (stdlib ล้วน)
+├── templates/index.html  # ฟอร์ม Lab 03 + form Analysis Mode/Source + ผล/status/หลักฐานรัน
+├── static/style.css      # responsive layout, badge, plot container
 ├── tests/
-│   ├── test_dc_bias.py   # ทดสอบสมการวิศวกรรม รวมฟังก์ชันใหม่
-│   └── test_web.py       # ทดสอบ route/ฟอร์ม/โหมด/validation
-├── requirements.txt      # Flask>=3.1,<4 (ไม่เพิ่ม dependency)
-├── README.md             # ไฟล์นี้
-├── AGENTS.md             # กติกาสำหรับ AI agent
-└── docs/
-    ├── design-note.md    # mapping ข้อกำหนด Lab 03 → ไฟล์/ฟังก์ชัน
-    ├── validation.md     # ตาราง A1–A5 + หลักฐานจาก browser + อธิบาย MCP
-    ├── reflection.md     # คำตอบคำถามรายบุคคล (นักศึกษาเติมเอง)
-    └── evidence-a1.png   # หลักฐานภาพหน้าจอกรณี A1
+│   ├── test_dc_bias.py   # 28 เทสต์เดิมของ Lab 03
+│   ├── test_web.py       # route/ฟอร์ม/validation เดิม
+│   └── test_spice_engine.py # netlist/parser/error path + รอบ ngspice จริง
+├── requirements.txt      # Flask>=3.1,<4 (ไม่เพิ่ม dependency; ngspice ติดตั้งแยก)
+├── AGENTS.md
+├── docs/
+│   ├── design-note.md
+│   ├── validation.md     # A1–A5 + B1–B8 พร้อม screenshot และ tool status
+│   ├── reflection.md     # คำตอบรายบุคคล (นักศึกษาเติมเอง)
+│   ├── evidence-a1.png
+│   └── captures/         # b2/b4/b5/b6/b7/b8 screenshots จาก OpenCode Browser
+└── README.md
 ```
+
+---
 
 ## ติดตั้งและรัน (PowerShell)
 
-> ในเครื่องนี้คำสั่ง `python` เป็น alias ของ Microsoft Store และใช้ไม่ได้ ให้ใช้ `py -3.14` หรือ venv แทน
+> ในเครื่องนี้คำสั่ง `python` เป็น Microsoft Store alias และใช้ไม่ได้ → ใช้ `py -3.14` หรือ venv โดยตรง
+
+### 1. Python + Flask
 
 ```powershell
-# 1. สร้าง venv (ครั้งแรก)
 py -3.14 -m venv .venv
-
-# 2. ติดตั้ง dependencies
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-# 3. รันเซิร์ฟเวอร์ (เฉพาะ 127.0.0.1)
-.\.venv\Scripts\python.exe -m flask --app app run --debug
+### 2. ngspice (โปรแกรมภายนอก — ไม่ใช่ pip package)
 
-# 4. เปิด http://127.0.0.1:5000/
+Windows 64-bit: ดาวน์โหลด ngspice 47 จาก <https://ngspice.sourceforge.io/download.html>
+(SourceForge `ngspice-47_64.7z`) → แตกไฟล์ → ใช้ executable ในโฟลเดอร์ `Spice64\bin`
 
-# 5. รันเทสต์
+เครื่องนี้ติดตั้งที่:
+
+```
+C:\Users\B6837228\AppData\Local\ngspice-47\Spice64\bin\ngspice_con.exe
+```
+
+เพิ่มโฟลเดอร์ `Spice64\bin` ลง user `PATH` หรือตั้ง environment variable:
+
+```powershell
+$env:NGSPICE_EXE = 'C:\Users\B6837228\AppData\Local\ngspice-47\Spice64\bin\ngspice_con.exe'
+```
+
+ตรวจเวอร์ชันก่อนรันเว็บ:
+
+```powershell
+ngspice_con.exe -v
+# ควรเห็น ngspice-47
+```
+
+`spice_engine.find_engine()` หา **`NGSPICE_EXE` → PATH (`ngspice_con`, `ngspice`) → ตำแหน่งติดตั้งที่รู้จัก**
+ตามลำดับ ถ้าไม่เจอจะแจ้ง error บนหน้าเว็บแทนการแสดงกราฟเก่า
+
+### 3. รันเซิร์ฟเวอร์
+
+```powershell
+.\.venv\Scripts\python.exe -m flask --app app run --debug --host 127.0.0.1 --port 5000
+```
+
+เปิด <http://127.0.0.1:5000/> (เฉพาะเครื่องนี้ — ไม่ deploy สาธารณะ)
+
+### 4. รันเทสต์
+
+```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-ผลลัพธ์ตอนนี้: **28 tests ผ่านทั้งหมด**
+ผลล่าสุด: **34 tests ผ่าน** (28 เทสต์เดิม + 6 เทสต์ Lab 04)
+เทสต์ที่ต้องใช้ engine จะ `skip` อัตโนมัติถ้าไม่พบ ngspice
+
+---
 
 ## วิธีใช้หน้าเว็บ
 
-1. เลือกวงจรในช่อง **วงจรที่เลือก** (Voltage-Divider / Fixed / Emitter)
-2. กด **Calculate DC Bias** ครั้งหนึ่งเพื่อสลับช่องอินพุตให้ตรงโหมด (ไม่ต้องใช้ JavaScript)
-3. กรอกเฉพาะช่องที่โผล่มาแล้วกด **Calculate DC Bias** อีกครั้ง
+### Lab 03 (ทางเดิม ไม่เปลี่ยน)
+
+1. เลือกวงจรใน **วงจรที่เลือก** แล้วกด **Calculate DC Bias** เพื่อสลับช่อง
+2. กรอกเฉพาะช่องที่โผล่มา แล้วกดอีกครั้ง
 
 | โหมด | ช่องที่ใช้ |
 |---|---|
-| Voltage-Divider Bias | VCC, R1, R2, RC, RE, β, VBE |
-| Fixed Bias | VCC, RB, RC, β, VBE (ไม่มี RE) |
-| Emitter Bias | VCC, RB, RC, RE, β, VBE |
+| Voltage-Divider | VCC, R1, R2, RC, RE, β, VBE |
+| Fixed | VCC, RB, RC, β, VBE |
+| Emitter | VCC, RB, RC, RE, β, VBE |
 
-หน่วย resistance เลือกได้ Ω / kΩ / MΩ (ช่อง RB มี MΩ ให้เลือกโดยตรง 1 MΩ = 1,000 kΩ = 1,000,000 Ω)
+หน่วย resistance เลือก Ω / kΩ / MΩ ได้ตามเดิม
 
-## ค่าอ้างอิง (ตรวจแล้วผ่าน Browser — A1–A5)
+### Lab 04 (CE Simulator — เลื่อนลงมาด้านล่าง)
 
-ใช้ร่วม: `VCC = 12 V`, `RC = 2.2 kΩ`, `β = 100`, `VBE = 0.70 V`
+1. เลือก **Analysis Mode**: `DC (.op)` / `AC (.ac)` / `Transient (.tran)`
+2. แก้ค่าวงจร/แหล่งสัญญาณแล้วกด **Run ngspice Simulation**
+   - ระหว่างรันจะเห็น `STATUS: RUNNING` (UI-only JS; ผลจริงยัง render จาก Flask)
+   - เสร็จแล้วจะเห็น `STATUS: SUCCESS` หรือหน้า `ERROR` ที่ไม่มีกราฟเก่า
+3. ดู badge `ENGINE: ngspice 47`, `MODEL: QNPN`, netlist และ log ใน `<details>`
 
-### ค่าอ้างอิงอิสระของโหมดใหม่ (A3 — Emitter, RB = 1 MΩ, RE = 1 kΩ)
+| ช่อง | หน่วยที่แสดง | หมายเหตุ |
+|---|---|---|
+| VCC | V | ใช้ทุกโหมด |
+| R1, R2, RC, RE, RL | kΩ | แปลงเป็น Ω ก่อนเขียน netlist |
+| Cin, Cout | µF | coupling capacitor (ไม่มี bypass capacitor) |
+| Source amplitude | mV peak | AC magnitude หรือ `SIN` amplitude |
+| Source frequency | Hz | ใช้กับ `.tran`; `.ac` sweep 1 Hz–10 MHz แบบคงที่ |
 
-คำนวณมือจากสมการในใบงาน ไม่ได้อ่านค่าจากโปรแกรม:
+Fixture เริ่มต้นตรงใบงาน: `12 V / 100 kΩ / 22 kΩ / 2.2 kΩ / 1 kΩ / 10 kΩ / 10 µF / 10 µF / 10 mV / 1 kHz`
 
-```text
-IB = (12 - 0.70) / (1,000,000 + 101×1,000)
-   = 11.3 / 1,101,000 = 10.2634 µA
-IC = 100 × 10.2634 µA = 1.02634 mA
-IE = 101 × 10.2634 µA = 1.03660 mA
-VE = 1.03660 × 1,000 = 1.03660 V
-VB = 1.03660 + 0.70 = 1.73660 V
-VC = 12 - (1.02634 mA × 2.2 kΩ) = 9.74205 V
-VCE = 9.74205 - 1.03660 = 8.70545 V
+**BJT model ที่ใช้ (documented, ไม่เดารุ่นการค้า):**
+
+```spice
+.MODEL QNPN NPN(IS=1e-14 BF=100 VAF=100 RB=10)
 ```
 
-| กรณี | อินพุต | IC | VCE |
-|---|---|---|---|
-| A1 Divider | R1=100 kΩ, R2=22 kΩ, RE=1 kΩ | 1.230 mA | 8.052 V |
-| A2 Fixed | RB=1 MΩ | 1.130 mA | 9.514 V |
-| A3 Emitter | RB=1 MΩ, RE=1 kΩ | 1.026 mA | 8.705 V |
-| A4 Emitter | RB=1 MΩ, RE=2 kΩ | 0.940 mA | 8.033 V |
-| A5 Fixed | RB=0 | แจ้ง error `ค่า RB ต้องมากกว่า 0 Ω` ไม่แสดงผลเก่า | — |
+**จุดวัด:** AC gain = `|V(OUT)/V(IN)|` โดย `V(IN)` อยู่ก่อน `Cin` และ `V(OUT)` ที่ `RL`;
+DC `IC` คำนวณจาก `(VCC−VC)/RC` หลังอ่าน node voltage จาก `ngspice .op`
 
-รายละเอียด ค่าคำนวณอิสระ วิธีตรวจ และหลักฐานอยู่ใน [`docs/validation.md`](docs/validation.md)
+ค่าอ้างอิงLab 03 (ตรวจแล้ว A1–A5 ใน [`docs/validation.md`](docs/validation.md)):
 
-## หมายเหตุเรื่อง MCP / Browser
+| กรณี | IC | VCE |
+|---|---|---|
+| A1 Divider | 1.230 mA | 8.052 V |
+| A2 Fixed | 1.130 mA | 9.514 V |
+| A3 Emitter (RE=1 kΩ) | 1.026 mA | 8.705 V |
+| A4 Emitter (RE=2 kΩ) | 0.940 mA | 8.033 V |
+| A5 Fixed RB=0 | error `ค่า RB ต้องมากกว่า 0 Ω` | — |
 
-- เครื่องนี้ไม่มี Node.js / npx จึง **Playwright MCP: NOT RUN** และใช้ **OpenCode Browser** ที่มาพร้อม OpenCode Desktop แทน (ใบงานให้คะแนนตรวจผลเท่ากันทุกวิธี)
-- ถ้าต้องการใช้ Playwright MCP จริง ให้ติดตั้ง Node.js 18+ แล้วเพิ่มใน `opencode.json` (OpenCode V2):
+ผล SPICE ตัวอย่าง (fixture เดิม): `VB 1.949 V · VE 1.289 V · VC 9.190 V · VCE 7.900 V · IC 1.277 mA`;
+AC 141 จุด, ที่ 1 kHz gain ≈ 4.859 dB / phase ≈ −179.87°;
+transient 10 mV/1 kHz ได้ Vout peak ≈ 17.50 mV และกลับเฟส (~180°)
+(ตัวเลขเหล่านี้เป็นหลักฐานจากรันจริง ไม่ได้เป็นค่าที่โปรแกรมใช้ตอบทุกครั้ง — -change input แล้วผลเปลี่ยน)
+
+---
+
+## วิธีตรวจซ้ำ / Reproducibility
+
+```powershell
+# 1) รัน ngspice ด้วย netlist ที่เว็บสร้างให้ (ดูใน <details> บนหน้าเว็บ)
+ngspice_con.exe -b -o run.log -r run.raw circuit.cir
+
+# 2) หรือเรียก adapter โดยตรง
+.\.venv\Scripts\python.exe -c "import spice_engine as s; p=dict(vcc=12,r1=100e3,r2=22e3,rc=2.2e3,re=1e3,rl=10e3,cin=10e-6,cout=10e-6,amp=0.010,freq=1000); print(s.run_analysis(dict(p,analysis='dc'))['readings'])"
+
+# 3) เปิด browser แล้วทำ B1–B8 ตามตารางใน docs/validation.md
+```
+
+รายละเอียด B1–B8, screenshot desktop/mobile, log excerpt, ความคลาดเคลื่อน และ tool status อยู่ใน
+[`docs/validation.md`](docs/validation.md)
+
+---
+
+## หมายเหตุเรื่อง MCP / Browser / Impeccable
+
+- **Playwright MCP: NOT RUN** — เครื่องนี้ไม่มี Node.js / npx และไม่มี MCP server ที่เปิดอยู่
+- **Impeccable Skill: NOT RUN** — ไม่มี skill นี้ใน session; ปรับ UI ด้วย HTML/CSS ทั่วไป
+- ใช้ **OpenCode Browser** ที่มากับ OpenCode Desktop แทนในการตรวจ B1–B8 และบันทึกตามความจริง
+- ถ้าต้องการ Playwright MCP จริง ให้ติดตั้ง Node.js 18+ แล้วเพิ่มใน `opencode.json` (OpenCode V2):
 
 ```json
 {
@@ -121,28 +196,37 @@ VCE = 9.74205 - 1.03660 = 8.70545 V
 
 ปิด–เปิด OpenCode แล้วตรวจด้วย `/mcps` หรือ `opencode mcp list`
 
-## เงื่อนไขและข้อจำกัด
+---
 
-- แบบจำลอง **Forward-Active** (β คงที่, VBE คงที่) เฉพาะ DC Bias เท่านั้น
-- ทั้งสามโหมดเตือน saturation ที่ `VCE ≤ 0.2 V` ตามใบงาน Lab 03 (กรณี A1 ยังได้ `VCE = 8.052 V` จึงไม่กระทบผลเดิม)
-- ไม่มี AC, Bode, Transient, SPICE, Load Line, หรือ Bias type อื่นนอกจาก 3 แบบนี้
-- เซิร์ฟเวอร์ Flask development ใช้เฉพาะบน `127.0.0.1` ไม่เปิดสู่เครือข่ายสาธารณะ
-- ห้าม commit `.venv/`, `.env`, API key หรือ credential ใด ๆ (มี `.gitignore` แล้ว)
+## ข้อจำกัด
+
+- Lab 03 ยังเป็น Forward-Active approximation เท่านั้น (β, VBE คงที่) และเตือน saturation ที่ `VCE ≤ 0.2 V`
+- Lab 04 มี **เฉพาะ** CE Voltage-Divider reference เดียว — ไม่มี editor วงจร, Emitter bypass, FET, overlay animated, AC ทุก bias mode หรือ deploy สาธารณะ
+- `.ac` sweep ถูกกำหนด `1 Hz–10 MHz`; โมเดลไม่มี high-frequency pole → ไม่รายงาน `fH` (ถือว่า *not determined in sweep range*) และยังไม่คำนวณ `-3 dB fL` อัตโนมัติ
+- SVG วาดฝั่งเซิร์ฟเวอร์ด้วย stdlib → มีแกน/หน่วย/legend แต่ไม่มี hover tooltip
+- ตรวจ B8 ด้วย iframe กว้าง 390 px แทน viewport resize API ของ browser tool; ไม่ใช่อุปกรณ์จริง
+- ห้าม commit `.venv/`, `.env`, API key, credential หรือไฟล์ run ชั่วคราว (`.gitignore` มีอยู่แล้ว)
+
+---
 
 ## ส่งงาน
 
-ก่อน Commit ให้ตรวจ `git diff` และ `git diff --staged` แล้ว Commit/Push ตาม Lab 1–2  
-**หมายเหตุ**: เครื่องนี้ไม่มี `git` ใน `PATH` แต่มี Git ที่มากับ GitHub Desktop ที่  
-`C:\Users\b6837228\AppData\Local\GitHubDesktop\app-3.6.11\resources\app\git\cmd\git.exe`  
-หรือใช้ GitHub Desktop กด **Commit** แล้ว **Push** ได้ตามปกติ
+ก่อน commit ตรวจ `git diff` และ `git diff --staged`
 
-ต้องส่ง **GitHub URL + Commit SHA** ของ commit ล่าสุดพร้อมงาน Lab 03
+ในเครื่องนี้ `git` ไม่ได้อยู่ใน PATH แต่มี Git ที่มากับ GitHub Desktop:
 
-### AI ช่วยอะไร และนักศึกษาตรวจอะไร
+```
+C:\Users\B6837228\AppData\Local\GitHubDesktop\app-3.7.0\resources\app\git\cmd\git.exe
+```
 
-- **AI ช่วย**: เขียน `solve_fixed_bias`, `solve_emitter_bias`, ปรับ `app.py`/template ให้เลือกโหมด, เพิ่มเทสต์, รันตรวจ Browser และร่าง `docs/validation.md`
-- **นักศึกษาตรวจ**: สมการและหน่วยเทียบกับค่าคำนวณมือ, ผล A1–A5 จากหน้าเว็บจริง, ทิศทาง A3→A4
-- **จุดเลือกฟังก์ชัน**: `SOLVERS[mode]` และ `if/elif` ใน `app.py`
-- **จุดแปลงหน่วย**: `parse_resistance()` ใน `app.py` (Ω / kΩ / MΩ → Ω)
-- **จุดตรวจอินพุต**: `required_fields()` + `validate_inputs()` ใน `app.py` (รวมการ reject `NaN`/`Inf` ด้วย `math.isfinite`)
-- **จุดคำนวณ**: `dc_bias.py` ทั้งสามฟังก์ชัน (ไม่ import Flask และไม่รู้จัก HTML)
+หรือใช้ GitHub Desktop กด **Commit** แล้ว **Push** ได้ตามปกติ  
+ต้องส่ง **GitHub URL + Commit SHA** ของ commit ล่าสุดพร้อมงาน Lab 04
+
+### AI ช่วยอะไร / นักศึกษาตรวจอะไร
+
+- AI เขียน adapter/plot/dispatch/UI/tests และร่างเอกสารจากผลรันจริง
+- นักศึกษาตรวจ netlist ใน `<details>`, log `.raw`, ทิศทางกลับเฟส และความต่าง SPICE/Analytical เอง
+- ถ้าเปลี่ยน amplitude แต่กราฟไม่เปลี่ยน → ไล่ `sp_amp → spice_params → build_netlist → run.raw → plots.py`
+
+*อ้างอิงเพิ่มเติม:* [ngspice docs](https://ngspice.sourceforge.io/docs.html) ·
+[batch mode manual](https://nmg.gitlab.io/ngspice-manual/startingngspice/startingoptions/batchmode.html)
