@@ -36,7 +36,7 @@ Flask web app เดิมจาก Lab 03 ยังใช้ได้ทุก�
 │   ├── validation.md     # A1–A5 + B1–B8 พร้อม screenshot และ tool status
 │   ├── reflection.md     # คำตอบรายบุคคล (นักศึกษาเติมเอง)
 │   ├── evidence-a1.png
-│   └── captures/         # b2/b4/b5/b6/b7/b8 screenshots จาก OpenCode Browser
+│   └── captures/         # b1/b2/b3/b4/b5/b6/b7/b8 screenshots จาก OpenCode Browser
 └── README.md
 ```
 
